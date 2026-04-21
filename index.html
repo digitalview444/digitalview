@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -5077,4 +5077,49 @@ var _lS=window.loadSettings;window.loadSettings=function(){if(typeof _lS==='func
 console.log('✅ Gemini AI fix active!');
 </script>
 </body>
+  <script>
+window.getAnthropicKey=function(){return localStorage.getItem('geminiApiKey')||localStorage.getItem('anthropicApiKey')||'';};
+window.callGeminiAI=async function(file,prompt){
+  var key=window.getAnthropicKey();
+  if(!key||!key.trim())throw new Error('OpenAI key not set. Go to Settings to save your sk-... key.');
+  return new Promise(function(res,rej){
+    var r=new FileReader();
+    r.onload=async function(ev){
+      try{
+        var resp=await fetch('https://api.openai.com/v1/chat/completions',{
+          method:'POST',
+          headers:{'Content-Type':'application/json','Authorization':'Bearer '+key.trim()},
+          body:JSON.stringify({model:'gpt-4o',max_tokens:2000,messages:[{role:'user',content:[{type:'text',text:prompt},{type:'image_url',image_url:{url:ev.target.result}}]}]})
+        });
+        var d=await resp.json();
+        if(d.error)throw new Error(d.error.message);
+        if(!d.choices||!d.choices[0])throw new Error('No response from OpenAI.');
+        res(d.choices[0].message.content);
+      }catch(e){rej(e);}
+    };
+    r.onerror=()=>rej(new Error('File read error'));
+    r.readAsDataURL(file);
+  });
+};
+window.saveAnthropicKey=function(){
+  var el=document.getElementById('anthropic-key');if(!el)return;
+  var key=el.value.trim(),msg=document.getElementById('ai-key-msg');
+  if(!key){if(msg)msg.innerHTML='<span style="color:#d32f2f;">Enter OpenAI key first (sk-...)</span>';return;}
+  localStorage.setItem('geminiApiKey',key);localStorage.setItem('anthropicApiKey',key);
+  if(msg)msg.innerHTML='<span style="color:#2e7d32;">✅ OpenAI Key saved! Click Test Key.</span>';
+  setTimeout(()=>{if(msg)msg.innerHTML='';},4000);
+};
+window.testAnthropicKey=async function(){
+  var key=window.getAnthropicKey(),msg=document.getElementById('ai-key-msg');
+  if(!key){if(msg)msg.innerHTML='<span style="color:#d32f2f;">❌ No key. Enter and Save first.</span>';return;}
+  if(msg)msg.innerHTML='<span style="color:#1565c0;">⏳ Testing OpenAI key...</span>';
+  try{
+    var resp=await fetch('https://api.openai.com/v1/models',{headers:{'Authorization':'Bearer '+key.trim()}});
+    if(resp.ok){if(msg)msg.innerHTML='<span style="color:#2e7d32;">✅ OpenAI Key WORKING! AI scanning enabled!</span>';}
+    else{var d=await resp.json();if(msg)msg.innerHTML='<span style="color:#d32f2f;">❌ '+((d.error&&d.error.message)||'Invalid key')+'</span>';}
+  }catch(e){if(msg)msg.innerHTML='<span style="color:#d32f2f;">❌ '+e.message+'</span>';}
+};
+window.loadAnthropicKeyField=function(){var el=document.getElementById('anthropic-key');if(el){var k=window.getAnthropicKey();if(k)el.value=k;}};
+var _lS=window.loadSettings;window.loadSettings=function(){if(typeof _lS==='function')_lS();window.loadAnthropicKeyField();};
+</script>
 </html>
