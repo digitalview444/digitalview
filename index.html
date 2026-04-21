@@ -5122,4 +5122,51 @@ window.testAnthropicKey=async function(){
 window.loadAnthropicKeyField=function(){var el=document.getElementById('anthropic-key');if(el){var k=window.getAnthropicKey();if(k)el.value=k;}};
 var _lS=window.loadSettings;window.loadSettings=function(){if(typeof _lS==='function')_lS();window.loadAnthropicKeyField();};
 </script>
+  <script>
+window.getAnthropicKey=function(){return localStorage.getItem('geminiApiKey')||localStorage.getItem('anthropicApiKey')||'';};
+window.callGeminiAI=async function(file,prompt){
+  var key=window.getAnthropicKey();
+  if(!key||!key.trim())throw new Error('Gemini key not set. Go to Settings to save your AIza... key.');
+  return new Promise(function(res,rej){
+    var r=new FileReader();
+    r.onload=async function(ev){
+      try{
+        var resp=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='+key.trim(),{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({contents:[{parts:[{text:prompt},{inline_data:{mime_type:file.type||'image/jpeg',data:ev.target.result.split(',')[1]}}]}]})
+        });
+        var d=await resp.json();
+        if(d.error)throw new Error(d.error.message);
+        if(!d.candidates||!d.candidates[0])throw new Error('No response from Gemini.');
+        res(d.candidates[0].content.parts[0].text);
+      }catch(e){rej(e);}
+    };
+    r.onerror=()=>rej(new Error('File read error'));
+    r.readAsDataURL(file);
+  });
+};
+window.saveAnthropicKey=function(){
+  var el=document.getElementById('anthropic-key');if(!el)return;
+  var key=el.value.trim(),msg=document.getElementById('ai-key-msg');
+  if(!key){if(msg)msg.innerHTML='<span style="color:#d32f2f;">Enter Gemini key first (AIza...)</span>';return;}
+  localStorage.setItem('geminiApiKey',key);localStorage.setItem('anthropicApiKey',key);
+  if(msg)msg.innerHTML='<span style="color:#2e7d32;">✅ Gemini Key saved!</span>';
+  setTimeout(()=>{if(msg)msg.innerHTML='';},4000);
+};
+window.testAnthropicKey=async function(){
+  var key=window.getAnthropicKey(),msg=document.getElementById('ai-key-msg');
+  if(!key){if(msg)msg.innerHTML='<span style="color:#d32f2f;">❌ No key saved.</span>';return;}
+  if(msg)msg.innerHTML='<span style="color:#1565c0;">⏳ Testing...</span>';
+  try{
+    var resp=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='+key.trim(),
+      {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:'Say OK'}]}]})});
+    var d=await resp.json();
+    if(d.candidates&&d.candidates[0]){if(msg)msg.innerHTML='<span style="color:#2e7d32;">✅ Gemini WORKING! 1500 free scans/day!</span>';}
+    else{if(msg)msg.innerHTML='<span style="color:#d32f2f;">❌ '+((d.error&&d.error.message)||'Invalid')+'</span>';}
+  }catch(e){if(msg)msg.innerHTML='<span style="color:#d32f2f;">❌ '+e.message+'</span>';}
+};
+window.loadAnthropicKeyField=function(){var el=document.getElementById('anthropic-key');if(el){var k=window.getAnthropicKey();if(k)el.value=k;}};
+var _lS=window.loadSettings;window.loadSettings=function(){if(typeof _lS==='function')_lS();window.loadAnthropicKeyField();};
+</script>
 </html>
